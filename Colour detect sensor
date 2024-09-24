@@ -1,0 +1,71 @@
+#include <Wire.h>
+#include "Adafruit_TCS34725.h"
+
+// set to false if using a common cathode LED
+#define commonAnode true
+
+// our RGB -> eye-recognized gamma color
+byte gammatable[256];
+
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_154MS, TCS34725_GAIN_16X);
+
+void setup() {
+  Serial.begin(9600);
+
+  if (tcs.begin()) {
+    // Sensor initialized successfully
+  } else {
+    Serial.println("No TCS34725 found ... check your connections");
+    while (1); // halt!
+  }
+
+  // Generate the gamma table for color correction
+  for (int i = 0; i < 256; i++) {
+    float x = i;
+    x /= 255;
+    x = pow(x, 2.5);
+    x *= 255;
+
+    if (commonAnode) {
+      gammatable[i] = 255 - x;
+    } else {
+      gammatable[i] = x;
+    }
+  }
+}
+
+// Helper function to determine the color name based on RGB values
+String getColorName(int red, int green, int blue) {
+  if (red > 90 && green < 90 && blue < 90) return "Red";
+  if (red < 90 && green > 90 && blue < 90) return "Green";
+  if (red < 90 && green < 90 && blue > 90) return "Blue";
+ // if (red > 110 && green > 110 && blue < 100) return "Yellow";
+ // if (red < 100 && green > 200 && blue > 200) return "Cyan";
+ // if (red > 200 && green < 100 && blue > 200) return "Magenta";
+  if (red > 95 && green > 95 && blue > 95) return "White";
+  if (red < 95 && green < 95 && blue < 95) return "Black";
+  return "Unknown";
+}
+
+void loop() {
+  float red, green, blue;
+  
+  tcs.setInterrupt(false);  // Turn on LED to read values
+
+  delay(60);  // Wait for sensor to read values
+
+  tcs.getRGB(&red, &green, &blue);  // Get RGB values from the sensor
+  
+  tcs.setInterrupt(true);  // Turn off LED after reading
+
+  // Print RGB values
+  Serial.print("R:\t"); Serial.print(int(red)); 
+  Serial.print("\tG:\t"); Serial.print(int(green)); 
+  Serial.print("\tB:\t"); Serial.print(int(blue)); 
+
+  // Determine and print the detected color
+  String colorName = getColorName(int(red), int(green), int(blue));
+  Serial.print("\tDetected Color: "); Serial.println(colorName);
+
+  delay(1000);  // Wait a bit before taking another reading
+}
